@@ -1,0 +1,52 @@
+name: Deploy Web V1 to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - web/**
+      - shared/**
+      - .nojekyll
+      - .github/pages-index.html
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Prepare Pages artifact
+        shell: bash
+        run: |
+          mkdir -p _site
+          cp -R web shared _site/
+          cp .nojekyll _site/.nojekyll
+          cp .github/pages-index.html _site/index.html
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+          include-hidden-files: true
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5

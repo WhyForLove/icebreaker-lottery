@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>下一位 · 破冰时刻</title>
+  <link rel="stylesheet" href="../shared/css/app.css?v=1.0.0">
+  <script src="../shared/defaults/头像/avatars.js" defer></script>
+  <script src="../shared/js/lottery-core.js" defer></script>
+  <script src="../shared/js/app-ui.js?v=1.0.0" defer></script>
+</head>
+<body data-animation="full">
+  <header class="topbar">
+      <a class="brand" href="./index.html"><span class="brand-icon">✳</span><span>下一位<small>破冰时刻</small></span></a>
+    <div class="top-actions">
+      <div class="settings-wrap">
+        <button id="settings" class="quiet settings-button" aria-label="设置" title="设置" aria-expanded="false" aria-controls="settings-panel">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m9.5 3-.7 2.2-1.6.9L5 5.6 2.5 9.9l1.6 1.7v1.8l-1.6 1.7L5 19.4l2.2-.5 1.6.9.7 2.2h5l.7-2.2 1.6-.9 2.2.5 2.5-4.3-1.6-1.7v-1.8l1.6-1.7L19 5.6l-2.2.5-1.6-.9L14.5 3Z"/><circle cx="12" cy="12" r="3.3"/></svg>
+        </button>
+        <div id="settings-panel" class="settings-overlay" hidden>
+          <section class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+            <header class="settings-header">
+              <div><span>ACTIVITY CONTROL</span><h2 id="settings-title">活动设置</h2></div>
+              <button id="settings-close" class="icon-button" type="button" aria-label="关闭设置">×</button>
+            </header>
+
+            <div id="settings-home" class="settings-view">
+              <label class="setting-row" for="animation-switch"><span><strong>抽取与放回动画</strong><small>抽取翻牌 · 正面放回</small></span><input id="animation-switch" type="checkbox" role="switch" checked></label>
+              <div class="settings-group">
+                <h3>伙伴与资源</h3>
+                <button id="folder" class="setting-action" type="button"><span><strong>临时更换图片文件夹</strong><small>只在本次打开页面期间使用</small></span><b>选择</b></button>
+                <button id="manage-partners" class="setting-action" type="button"><span><strong>伙伴名册</strong><small>浏览、添加、编辑或移除伙伴</small></span><b>打开</b></button>
+                <button id="bind-folder" class="setting-action" type="button"><span><strong>绑定头像文件夹</strong><small>首次授权后，增删改优先复用该文件夹</small></span><b id="folder-binding-status">未绑定</b></button>
+              </div>
+              <div class="settings-group">
+                <h3>本轮活动</h3>
+                <button id="reset" class="setting-action" type="button"><span><strong>重新开始</strong><small>保留当前伙伴，清空本轮记录</small></span><b>重置</b></button>
+                <button id="reload" class="setting-action" type="button"><span><strong>重新加载页面</strong><small>读取磁盘中的最新伙伴并清空进度</small></span><b>刷新</b></button>
+              </div>
+              <p class="settings-note">浏览器不能预先获得本地目录权限。首次绑定项目中的“头像”文件夹后，后续增删改会优先复用；权限失效时仍需再次允许访问。</p>
+            </div>
+
+            <section id="manage-partner-view" class="settings-view management-view" hidden>
+              <div class="management-heading"><button id="manage-back" class="text-button" type="button">← 返回</button><div><h3>伙伴名册</h3><p>查找伙伴，维护头像与昵称</p></div></div>
+              <div class="management-toolbar"><input id="partner-search" type="search" placeholder="搜索编号、昵称或文件名" aria-label="搜索伙伴"><button id="sort-partners" class="secondary-button" type="button">调整顺序</button><button id="add-partners" class="primary-button" type="button">添加伙伴</button></div>
+              <label class="select-all-row"><input id="manage-all" type="checkbox"><span>全选当前结果</span><b id="manage-count">共 0 位 · 已选择 0 位</b></label>
+              <div id="manage-partner-list" class="management-list manage-list"></div>
+              <div class="modal-actions"><button id="manage-done" class="secondary-button" type="button">完成</button><button id="delete-confirm" class="danger-button" type="button" disabled>删除选中的伙伴</button></div>
+            </section>
+
+            <form id="add-partner-view" class="settings-view management-view" hidden>
+              <div class="management-heading"><button id="add-back" class="text-button" type="button">← 返回</button><div><h3>添加伙伴</h3><p>请为每张图片填写昵称</p></div></div>
+              <div id="add-partner-list" class="management-list"></div>
+              <div class="modal-actions"><button id="add-cancel" class="secondary-button" type="button">取消</button><button id="add-save" class="primary-button" type="submit">写入头像文件夹</button></div>
+            </form>
+
+            <form id="edit-partner-view" class="settings-view management-view" hidden>
+              <div class="management-heading"><button id="edit-back" class="text-button" type="button">← 返回</button><div><h3>编辑伙伴</h3><p>修改头像或昵称</p></div></div>
+              <div class="edit-partner-card">
+                <img id="edit-preview" alt="头像预览">
+                <div><strong id="edit-filename"></strong><button id="edit-choose-avatar" class="secondary-button" type="button">更换头像</button></div>
+              </div>
+              <div class="edit-fields single-field">
+                <label><span>微信昵称</span><input id="edit-nickname" type="text" maxlength="100" required></label>
+              </div>
+              <div class="modal-actions"><button id="edit-cancel" class="secondary-button" type="button">取消</button><button id="edit-save" class="primary-button" type="submit">保存修改</button></div>
+            </form>
+
+            <section id="sort-partner-view" class="settings-view management-view" hidden>
+              <div class="management-heading"><button id="sort-back" class="text-button" type="button">← 返回</button><div><h3>调整伙伴顺序</h3><p>拖动伙伴，或使用上下按钮调整位置</p></div></div>
+              <div id="sort-partner-list" class="management-list sort-list"></div>
+              <p class="settings-note">保存后将按照当前顺序自动生成“小伙伴1、小伙伴2……”，不再单独维护编号。</p>
+              <div class="modal-actions"><button id="sort-shuffle" class="secondary-button shuffle-button" type="button">随机打乱</button><button id="sort-cancel" class="secondary-button" type="button">取消</button><button id="sort-save" class="primary-button" type="button">保存顺序</button></div>
+            </section>
+          </section>
+        </div>
+      </div>
+    </div>
+    <input id="files" type="file" webkitdirectory multiple hidden>
+    <input id="add-files" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/avif" multiple hidden>
+    <input id="edit-avatar-file" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/avif" hidden>
+  </header>
+
+  <main>
+    <section class="intro">
+      <p class="eyebrow">A LITTLE CHANCE, A NEW CONNECTION</p>
+      <h1>下一位，会是谁<span>？</span></h1>
+      <p class="subtitle">翻开一张卡片，认识一位新朋友。</p>
+    </section>
+    <div class="workspace">
+      <section class="pool waiting">
+        <div class="section-title"><h2><span class="dot"></span>伙伴席</h2><span class="count" id="pending-count">0</span></div>
+        <p class="section-note">点击任意卡片可直接查看或抽取</p>
+        <div id="pending" class="card-grid"></div>
+      </section>
+
+      <section class="stage" aria-label="当前选中">
+        <div class="stage-top"><span class="live-dot"></span><span id="stage-label">等待相遇</span><span id="progress" class="progress">0 / 20</span></div>
+        <div id="picture" class="picture">
+          <div id="placeholder" class="placeholder"><span class="orbit orbit-one"></span><span class="orbit orbit-two"></span><span class="spark">✳</span><span class="empty-title">把惊喜留给下一秒</span><span class="empty-sub">点击下方按钮，翻开一张卡片</span></div>
+          <img id="hero" alt="" hidden>
+          <span class="photo-corner">NICE TO MEET YOU</span>
+        </div>
+        <div class="selected-caption"><span>微信昵称</span><h2 id="selected-name">准备好认识新朋友了吗？</h2><p id="status" role="status" aria-live="polite">已载入卡片，随时可以开始</p></div>
+        <div class="controls"><button id="back" class="side-button" title="回到上一个（←）" disabled>← <span>上一个</span></button><button id="put-back" class="side-button" title="放回当前卡片" disabled>↶ <span>放回</span></button><button id="draw" class="draw-button">抽取一位 <span>↗</span></button></div>
+        <div class="stage-bottom">↓ / PgDn 抽取 · ↑ / PgUp 上一个</div>
+      </section>
+    </div>
+    <footer class="page-footer">相遇，从翻开卡片开始。</footer>
+  </main>
+</body>
+</html>

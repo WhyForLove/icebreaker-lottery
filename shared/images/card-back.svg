@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="360" viewBox="0 0 360 360">
+  <defs>
+    <linearGradient id="base" x2="1" y2="1"><stop stop-color="#405844"/><stop offset=".5" stop-color="#233b30"/><stop offset="1" stop-color="#172c24"/></linearGradient>
+    <linearGradient id="gold" x2="1" y2="1"><stop stop-color="#f1e0a5"/><stop offset=".5" stop-color="#b6a36a"/><stop offset="1" stop-color="#e9d39a"/></linearGradient>
+    <pattern id="weave" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M12 0 24 12 12 24 0 12Z" fill="none" stroke="#dac794" stroke-opacity=".14" stroke-width=".65"/><circle cx="12" cy="12" r="1" fill="#dac794" fill-opacity=".3"/></pattern>
+    <g id="corner" fill="none" stroke="url(#gold)" stroke-width="1.3"><path d="M0 36V0h36M7 30V7h23M0 0l30 30M14 0Q14 14 0 14"/><path d="m24 17 7 7-7 7-7-7Z"/></g>
+    <g id="star"><path d="M0-62 8-18 44-44 18-8 62 0 18 8 44 44 8 18 0 62-8 18-44 44-18 8-62 0-18-8-44-44-8-18Z" fill="url(#gold)"/><path d="M0-44 4-10 30-30 10-4 44 0 10 4 30 30 4 10 0 44-4 10-30 30-10 4-44 0-10-4-30-30-4-10Z" fill="#274032"/><circle r="7" fill="url(#gold)"/></g>
+  </defs>
+  <rect width="360" height="360" rx="18" fill="url(#base)"/>
+  <rect x="11" y="11" width="338" height="338" rx="12" fill="url(#weave)" stroke="url(#gold)" stroke-width="1.5"/>
+  <rect x="20" y="20" width="320" height="320" rx="8" fill="none" stroke="#d1bd82" stroke-opacity=".65" stroke-width=".7"/>
+  <use href="#corner" transform="translate(29 29)"/><use href="#corner" transform="translate(331 29) rotate(90)"/><use href="#corner" transform="translate(331 331) rotate(180)"/><use href="#corner" transform="translate(29 331) rotate(270)"/>
+  <g transform="translate(180 180)">
+    <path d="M0-120 120 0 0 120-120 0Z" fill="#253d30" stroke="url(#gold)" stroke-width="1.2"/>
+    <path d="M0-108 108 0 0 108-108 0Z" fill="none" stroke="#d7c189" stroke-opacity=".5"/>
+    <circle r="88" fill="none" stroke="url(#gold)" stroke-width="1.3"/><circle r="79" fill="none" stroke="#d7c189" stroke-dasharray="1 6"/>
+    <use href="#star"/>
+    <path d="M0-111v12M0 99v12M-111 0h12M99 0h12" stroke="url(#gold)" stroke-width="2"/>
+    <circle cy="-140" r="3" fill="#d7c189"/><circle cy="140" r="3" fill="#d7c189"/>
+  </g>
+  <path d="M137 52h86M152 57h56M137 308h86M152 303h56" stroke="#d7c189" stroke-opacity=".8"/>
+</svg>
