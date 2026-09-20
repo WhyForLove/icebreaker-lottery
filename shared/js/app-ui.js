@@ -3,22 +3,23 @@ const $ = id => document.getElementById(id);
 let animationEnabled = true;
 const SUPPORTED_IMAGE_PATTERN = /\.(jpe?g|png|webp|gif|bmp|avif)$/i;
 const isSupportedImageName = name => SUPPORTED_IMAGE_PATTERN.test(String(name || ''));
-const indexedEntries = (window.DEFAULT_AVATARS || []).filter(entry => isSupportedImageName(entry.file));
-const avatarSource = file => ['..', 'shared', 'defaults', '头像', file]
-  .map(part => part === '..' ? part : encodeURIComponent(part))
-  .join('/');
-const normalizeRoster = roster => roster.map((entry, index) => ({
-  id: index,
-  number: index + 1,
-  numberedName: `小伙伴${index + 1}`,
-  nickname: String(entry.nickname || '').trim(),
-  file: entry.file,
-  src: new URL(avatarSource(entry.file), location.href).href,
-}));
-let defaultEntries = normalizeRoster(indexedEntries);
-let entries = defaultEntries.map(entry => ({ ...entry }));
-let lookup = new Map(entries.map(entry => [entry.id, entry]));
-let game = new Lottery(entries.map(entry => entry.id));
+const partnerAdapter = window.partnerAdapter;
+if (!partnerAdapter) throw new Error('缺少伙伴文件适配器。');
+const adapterCapabilities = partnerAdapter.capabilities || {};
+const normalizeRoster = async roster => Promise.all(roster
+  .filter(entry => isSupportedImageName(entry.file))
+  .map(async (entry, index) => ({
+    id: index,
+    number: index + 1,
+    numberedName: `小伙伴${index + 1}`,
+    nickname: String(entry.nickname || '').trim(),
+    file: entry.file,
+    src: entry.src || await partnerAdapter.getAvatarSrc(entry.file),
+  })));
+let defaultEntries = [];
+let entries = [];
+let lookup = new Map();
+let game = new Lottery([]);
 let busy = false;
 let activeAction = null;
 let currentIsPreview = false;
@@ -28,7 +29,6 @@ let addDraft = [];
 let deleteSelection = new Set();
 let managementQuery = '';
 let editDraft = null;
-let avatarDirectoryHandle = null;
 let sortDraft = [];
 
 const entryOf = id => lookup.get(id);
@@ -567,149 +567,21 @@ function releaseEditDraft() {
   $('edit-avatar-file').value = '';
 }
 
-const AVATAR_HANDLE_DB = 'icebreaker-local-settings';
-const AVATAR_HANDLE_STORE = 'handles';
-const AVATAR_HANDLE_KEY = 'avatar-directory';
-
-function openAvatarHandleDatabase() {
-  return new Promise((resolve, reject) => {
-    if (!window.indexedDB) {
-      reject(new Error('当前浏览器不能保存文件夹绑定。'));
-      return;
-    }
-    const request = indexedDB.open(AVATAR_HANDLE_DB, 1);
-    request.onupgradeneeded = () => {
-      if (!request.result.objectStoreNames.contains(AVATAR_HANDLE_STORE)) request.result.createObjectStore(AVATAR_HANDLE_STORE);
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error || new Error('无法打开本地设置。'));
-  });
-}
-
-async function readStoredAvatarDirectory() {
-  try {
-    const database = await openAvatarHandleDatabase();
-    return await new Promise((resolve, reject) => {
-      const transaction = database.transaction(AVATAR_HANDLE_STORE, 'readonly');
-      const request = transaction.objectStore(AVATAR_HANDLE_STORE).get(AVATAR_HANDLE_KEY);
-      request.onsuccess = () => resolve(request.result || null);
-      request.onerror = () => reject(request.error);
-      transaction.oncomplete = () => database.close();
-    });
-  } catch {
-    return null;
-  }
-}
-
-async function storeAvatarDirectory(directory) {
-  try {
-    const database = await openAvatarHandleDatabase();
-    await new Promise((resolve, reject) => {
-      const transaction = database.transaction(AVATAR_HANDLE_STORE, 'readwrite');
-      transaction.objectStore(AVATAR_HANDLE_STORE).put(directory, AVATAR_HANDLE_KEY);
-      transaction.oncomplete = resolve;
-      transaction.onerror = () => reject(transaction.error);
-      transaction.onabort = () => reject(transaction.error);
-    });
-    database.close();
-  } catch {
-    // Some local-file browser contexts cannot persist file-system handles.
-  }
-}
-
-async function validateAvatarDirectory(directory) {
-  if (!directory || directory.name !== '头像') throw new Error('请选择当前项目中的“头像”文件夹。');
-  try {
-    await directory.getFileHandle('avatars.js');
-  } catch {
-    throw new Error('所选文件夹中没有 avatars.js，请选择当前项目使用的“头像”文件夹。');
-  }
-}
-
-async function requestDirectoryPermission(directory) {
-  if (typeof directory.queryPermission !== 'function') return true;
-  const options = { mode: 'readwrite' };
-  if (await directory.queryPermission(options) === 'granted') return true;
-  return typeof directory.requestPermission === 'function' && await directory.requestPermission(options) === 'granted';
-}
-
 async function refreshFolderBindingStatus() {
-  if (!avatarDirectoryHandle) avatarDirectoryHandle = await readStoredAvatarDirectory();
-  $('folder-binding-status').textContent = avatarDirectoryHandle?.name === '头像' ? '已记录' : '未绑定';
+  if (!adapterCapabilities.folderBinding) return;
+  $('folder-binding-status').textContent = await partnerAdapter.getBindingStatus();
 }
 
-function manifestRecords(roster) {
-  return normalizeRoster(roster).map(entry => ({
-    id: entry.id,
-    number: entry.number,
-    numberedName: entry.numberedName,
-    nickname: entry.nickname,
-    file: entry.file,
-    src: avatarSource(entry.file),
-  }));
-}
-
-async function writeAvatarManifest(directory, roster) {
-  const manifest = await directory.getFileHandle('avatars.js', { create: true });
-  const writable = await manifest.createWritable();
-  const content = `window.DEFAULT_AVATARS = ${JSON.stringify(manifestRecords(roster), null, 2)};\n`;
-  try {
-    await writable.write(content);
-  } finally {
-    await writable.close();
-  }
-}
-
-async function chooseAvatarDirectory(forcePicker = false) {
-  if (location.protocol !== 'file:') {
-    throw new Error('永久增删改只能在本地打开 index.html 时使用；在线页面不能改写服务器文件。');
-  }
-  if (typeof window.showDirectoryPicker !== 'function') {
-    throw new Error('当前浏览器不支持写入本地文件夹，请使用最新版 Edge 或 Chrome。');
-  }
-  if (!forcePicker) {
-    if (!avatarDirectoryHandle) avatarDirectoryHandle = await readStoredAvatarDirectory();
-    if (avatarDirectoryHandle) {
-      try {
-        if (await requestDirectoryPermission(avatarDirectoryHandle)) {
-          await validateAvatarDirectory(avatarDirectoryHandle);
-          $('folder-binding-status').textContent = '已授权';
-          return avatarDirectoryHandle;
-        }
-      } catch {
-        avatarDirectoryHandle = null;
-      }
-    }
-  }
-  const directory = await window.showDirectoryPicker({ id: 'icebreaker-avatar-folder', mode: 'readwrite' });
-  await validateAvatarDirectory(directory);
-  avatarDirectoryHandle = directory;
-  await storeAvatarDirectory(directory);
-  $('folder-binding-status').textContent = '已授权';
-  return directory;
-}
-
-function applyPersistentRoster(roster) {
+async function applyPersistentRoster(roster) {
   objectUrls.forEach(url => URL.revokeObjectURL(url));
   objectUrls = [];
-  defaultEntries = normalizeRoster(roster);
+  defaultEntries = await normalizeRoster(roster);
   entries = defaultEntries.map(entry => ({ ...entry }));
   lookup = new Map(entries.map(entry => [entry.id, entry]));
   game = new Lottery(entries.map(entry => entry.id));
   currentIsPreview = false;
   closeSettings();
   render();
-}
-
-function uniqueFileName(original, reservedNames) {
-  const dot = original.lastIndexOf('.');
-  const stem = dot > 0 ? original.slice(0, dot) : original;
-  const extension = dot > 0 ? original.slice(dot) : '';
-  let candidate = original;
-  let suffix = 2;
-  while (reservedNames.has(candidate.toLocaleLowerCase('zh-CN'))) candidate = `${stem} (${suffix++})${extension}`;
-  reservedNames.add(candidate.toLocaleLowerCase('zh-CN'));
-  return candidate;
 }
 
 function renderAddDraft() {
@@ -860,7 +732,7 @@ function renderSortView() {
     handle.textContent = '⋮⋮';
     handle.title = '拖动调整顺序';
     const image = new Image();
-    image.src = entry?.src || avatarSource(item.file);
+    image.src = entry?.src || '';
     image.alt = item.nickname;
     const text = document.createElement('span');
     text.className = 'partner-meta';
@@ -921,7 +793,7 @@ $('reload').onclick = () => {
   if (!busy && confirm('重新加载页面会清空本轮进度，并读取磁盘中的最新伙伴。继续吗？')) location.reload();
 };
 $('folder').onclick = () => {
-  if (busy) return;
+  if (busy || !adapterCapabilities.temporaryFolder) return;
   closeSettings();
   $('files').value = '';
   $('files').click();
@@ -936,9 +808,9 @@ $('manage-partners').onclick = () => {
   $('partner-search').focus();
 };
 $('bind-folder').onclick = async () => {
-  if (busy) return;
+  if (busy || !adapterCapabilities.folderBinding) return;
   try {
-    await chooseAvatarDirectory(true);
+    $('folder-binding-status').textContent = await partnerAdapter.bindFolder();
     alert('头像文件夹已绑定，后续增删改会优先复用。');
   } catch (error) {
     if (error.name !== 'AbortError') alert(error.message);
@@ -988,22 +860,15 @@ $('sort-save').onclick = async () => {
     showSettingsView('manage-partner-view');
     return;
   }
-  let directory;
-  try {
-    directory = await chooseAvatarDirectory();
-  } catch (error) {
-    if (error.name !== 'AbortError') alert(error.message);
-    return;
-  }
   const button = $('sort-save');
   button.disabled = true;
   button.textContent = '正在保存…';
   try {
-    await writeAvatarManifest(directory, sortDraft);
-    applyPersistentRoster(sortDraft);
+    const result = await partnerAdapter.saveOrder({ roster: sortDraft });
+    await applyPersistentRoster(result.roster);
     alert('伙伴顺序已保存，编号已自动更新，并重置本轮进度。');
   } catch (error) {
-    alert(`顺序保存失败：${error.message}`);
+    if (error.name !== 'AbortError') alert(`顺序保存失败：${error.message}`);
   } finally {
     button.disabled = false;
     button.textContent = '保存顺序';
@@ -1029,43 +894,16 @@ $('add-partner-view').onsubmit = async event => {
     $('add-partner-list').querySelectorAll('input')[blankNickname]?.focus();
     return;
   }
-  let directory;
-  try {
-    directory = await chooseAvatarDirectory();
-  } catch (error) {
-    if (error.name !== 'AbortError') alert(error.message);
-    return;
-  }
   const button = $('add-save');
   button.disabled = true;
   button.textContent = '正在写入…';
-  const written = [];
   try {
-    const reserved = new Set();
-    for await (const name of directory.keys()) reserved.add(name.toLocaleLowerCase('zh-CN'));
-    const additions = [];
-    for (const item of addDraft) {
-      const fileName = uniqueFileName(item.file.name, reserved);
-      const handle = await directory.getFileHandle(fileName, { create: true });
-      const writable = await handle.createWritable();
-      try {
-        await writable.write(item.file);
-      } finally {
-        await writable.close();
-      }
-      written.push(fileName);
-      additions.push({ file: fileName, nickname: item.nickname.trim() });
-    }
-    const nextRoster = [...rosterData(), ...additions];
-    await writeAvatarManifest(directory, nextRoster);
-    const addedCount = additions.length;
-    applyPersistentRoster(nextRoster);
+    const addedCount = addDraft.length;
+    const result = await partnerAdapter.addPartners({ roster: rosterData(), drafts: addDraft });
+    await applyPersistentRoster(result.roster);
     alert(`已添加 ${addedCount} 位伙伴，并重置本轮进度。`);
   } catch (error) {
-    for (const name of written) {
-      try { await directory.removeEntry(name); } catch { /* best-effort rollback */ }
-    }
-    alert(`添加失败：${error.message}`);
+    if (error.name !== 'AbortError') alert(`添加失败：${error.message}`);
   } finally {
     button.disabled = false;
     button.textContent = '写入头像文件夹';
@@ -1112,49 +950,22 @@ $('edit-partner-view').onsubmit = async event => {
     alert('昵称不能为空。');
     return;
   }
-  let directory;
-  try {
-    directory = await chooseAvatarDirectory();
-  } catch (error) {
-    if (error.name !== 'AbortError') alert(error.message);
-    return;
-  }
   const button = $('edit-save');
   button.disabled = true;
   button.textContent = '正在保存…';
-  let writtenFile = null;
-  let oldFileDeleteFailed = false;
   try {
-    const nextRoster = rosterData();
-    const currentIndex = nextRoster.findIndex(entry => entry.file === editDraft.originalFile);
-    const updated = nextRoster[currentIndex];
-    updated.nickname = nickname;
-    if (editDraft.replacement) {
-      const reserved = new Set();
-      for await (const name of directory.keys()) reserved.add(name.toLocaleLowerCase('zh-CN'));
-      writtenFile = uniqueFileName(editDraft.replacement.name, reserved);
-      const handle = await directory.getFileHandle(writtenFile, { create: true });
-      const writable = await handle.createWritable();
-      try {
-        await writable.write(editDraft.replacement);
-      } finally {
-        await writable.close();
-      }
-      updated.file = writtenFile;
-    }
-    await writeAvatarManifest(directory, nextRoster);
-    if (writtenFile) {
-      try { await directory.removeEntry(editDraft.originalFile); } catch { oldFileDeleteFailed = true; }
-    }
-    applyPersistentRoster(nextRoster);
-    alert(oldFileDeleteFailed
+    const result = await partnerAdapter.editPartner({
+      roster: rosterData(),
+      originalFile: editDraft.originalFile,
+      nickname,
+      replacementFile: editDraft.replacement,
+    });
+    await applyPersistentRoster(result.roster);
+    alert(result.warnings.length
       ? '修改已保存并重置本轮进度，但旧头像未能删除，请手动检查“头像”文件夹。'
       : '伙伴资料已更新，并重置本轮进度。');
   } catch (error) {
-    if (writtenFile) {
-      try { await directory.removeEntry(writtenFile); } catch { /* best-effort rollback */ }
-    }
-    alert(`修改失败：${error.message}`);
+    if (error.name !== 'AbortError') alert(`修改失败：${error.message}`);
   } finally {
     button.disabled = false;
     button.textContent = '保存修改';
@@ -1164,31 +975,17 @@ $('delete-confirm').onclick = async () => {
   if (!deleteSelection.size) return;
   const count = deleteSelection.size;
   if (!confirm(`将永久删除选中的 ${count} 位伙伴及其本地图片，删除后无法恢复，并会重置本轮进度。确定继续吗？`)) return;
-  let directory;
-  try {
-    directory = await chooseAvatarDirectory();
-  } catch (error) {
-    if (error.name !== 'AbortError') alert(error.message);
-    return;
-  }
   const button = $('delete-confirm');
   button.disabled = true;
   button.textContent = '正在删除…';
   try {
-    const nextRoster = defaultEntries
-      .filter(entry => !deleteSelection.has(entry.file))
-      .map(({ file, nickname }) => ({ file, nickname }));
-    await writeAvatarManifest(directory, nextRoster);
-    let failed = 0;
-    for (const file of deleteSelection) {
-      try { await directory.removeEntry(file); } catch { failed++; }
-    }
-    applyPersistentRoster(nextRoster);
-    alert(failed
-      ? `伙伴列表已更新并重置本轮进度，但有 ${failed} 个图片文件未能从磁盘删除，请手动检查“头像”文件夹。`
+    const result = await partnerAdapter.deletePartners({ roster: rosterData(), files: [...deleteSelection] });
+    await applyPersistentRoster(result.roster);
+    alert(result.warnings.length
+      ? `伙伴列表已更新并重置本轮进度，但${result.warnings[0]}`
       : `已永久删除 ${count} 位伙伴，并重置本轮进度。`);
   } catch (error) {
-    alert(`删除失败：${error.message}`);
+    if (error.name !== 'AbortError') alert(`删除失败：${error.message}`);
   } finally {
     button.disabled = false;
     button.textContent = '删除选中的伙伴';
@@ -1196,11 +993,8 @@ $('delete-confirm').onclick = async () => {
 };
 
 $('files').onchange = async event => {
-  const relativeName = file => file.webkitRelativePath ? file.webkitRelativePath.split('/').slice(1).join('/') : file.name;
-  const files = [...event.target.files]
-    .filter(file => isSupportedImageName(file.name))
-    .sort((a, b) => relativeName(a).localeCompare(relativeName(b), 'zh-CN', { numeric: true }) || (relativeName(a) < relativeName(b) ? -1 : 1));
-  if (!files.length) {
+  const files = [...event.target.files];
+  if (!files.some(file => isSupportedImageName(file.name))) {
     alert('这个文件夹没有支持的图片，请选择包含 JPG、PNG 或 WebP 等图片的文件夹。');
     return;
   }
@@ -1208,43 +1002,23 @@ $('files').onchange = async event => {
   busy = true;
   render();
   $('status').textContent = '正在检查图片…';
-  const accepted = [];
-  const nextUrls = [];
-  const indexedFiles = new Map(defaultEntries.map(entry => [entry.file, entry]));
-  let failed = 0;
-  for (const file of files) {
-    const src = URL.createObjectURL(file);
-    const image = new Image();
-    image.src = src;
-    try {
-      await image.decode();
-      const indexed = indexedFiles.get(relativeName(file));
-      const number = accepted.length + 1;
-      accepted.push({
-        id: accepted.length,
-        number,
-        numberedName: `小伙伴${number}`,
-        nickname: indexed?.nickname || file.name.replace(/\.[^.]+$/, ''),
-        file: relativeName(file),
-        src,
-      });
-      nextUrls.push(src);
-    } catch {
-      URL.revokeObjectURL(src);
-      failed++;
+  let result;
+  try {
+    result = await partnerAdapter.loadTemporaryFiles(files, rosterData());
+    if (result.roster.length) {
+      objectUrls.forEach(url => URL.revokeObjectURL(url));
+      objectUrls = result.objectUrls;
+      entries = await normalizeRoster(result.roster);
+      lookup = new Map(entries.map(entry => [entry.id, entry]));
+      game = new Lottery(entries.map(entry => entry.id));
+      currentIsPreview = false;
     }
-  }
-  if (accepted.length) {
-    objectUrls.forEach(url => URL.revokeObjectURL(url));
-    objectUrls = nextUrls;
-    entries = accepted;
-    lookup = new Map(entries.map(entry => [entry.id, entry]));
-    game = new Lottery(entries.map(entry => entry.id));
-    currentIsPreview = false;
+  } catch (error) {
+    alert(`图片读取失败：${error.message}`);
   }
   busy = false;
   render();
-  if (failed) alert(`${failed} 张图片无法读取，已跳过。${accepted.length ? `成功载入 ${accepted.length} 张图片。` : '保留原来的图片和进度。'}`);
+  if (result?.failed) alert(`${result.failed} 张图片无法读取，已跳过。${result.roster.length ? `成功载入 ${result.roster.length} 张图片。` : '保留原来的图片和进度。'}`);
 };
 
 document.addEventListener('keydown', event => {
@@ -1283,5 +1057,20 @@ document.addEventListener('keydown', event => {
 });
 
 new ResizeObserver(alignHero).observe($('picture'));
-refreshFolderBindingStatus();
-render();
+
+async function initializeApp() {
+  $('folder').hidden = !adapterCapabilities.temporaryFolder;
+  $('bind-folder').hidden = !adapterCapabilities.folderBinding;
+  const roster = await partnerAdapter.loadRoster();
+  defaultEntries = await normalizeRoster(roster);
+  entries = defaultEntries.map(entry => ({ ...entry }));
+  lookup = new Map(entries.map(entry => [entry.id, entry]));
+  game = new Lottery(entries.map(entry => entry.id));
+  await refreshFolderBindingStatus();
+  render();
+}
+
+initializeApp().catch(error => {
+  render();
+  $('status').textContent = `伙伴载入失败：${error.message}`;
+});
