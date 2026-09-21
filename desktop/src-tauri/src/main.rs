@@ -59,28 +59,31 @@ struct ManifestRecord {
 }
 
 fn avatar_directory() -> Result<PathBuf, String> {
-    let source_directory = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    #[cfg(debug_assertions)]
+    let directory = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join("..")
         .join("shared")
         .join("defaults")
         .join("头像");
-    let executable_directory = std::env::current_exe()
-        .ok()
-        .and_then(|path| path.parent().map(Path::to_path_buf))
-        .map(|directory| {
-            directory
-                .join("..")
-                .join("shared")
-                .join("defaults")
-                .join("头像")
-        });
 
-    executable_directory
-        .into_iter()
-        .chain(std::iter::once(source_directory))
-        .find_map(|directory| directory.canonicalize().ok())
-        .ok_or_else(|| "无法定位 shared/defaults/头像，请确认 EXE 仍位于项目的 desktop 目录。".to_string())
+    #[cfg(not(debug_assertions))]
+    let directory = std::env::current_exe()
+        .map_err(|error| format!("无法定位程序目录：{error}"))?
+        .parent()
+        .ok_or_else(|| "无法定位程序目录。".to_string())?
+        .join("头像");
+
+    directory.canonicalize().map_err(|error| {
+        #[cfg(debug_assertions)]
+        {
+            format!("无法定位开发用头像目录 shared/defaults/头像：{error}")
+        }
+        #[cfg(not(debug_assertions))]
+        {
+            format!("无法读取头像目录，请确认“头像”文件夹与“下一位.exe”位于同一目录：{error}")
+        }
+    })
 }
 
 fn manifest_path(directory: &Path) -> PathBuf {

@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:exe": "powershell -NoProfile -ExecutionPolicy Bypass -File ./build-exe.ps1",
+    "package:releases": "powershell -NoProfile -ExecutionPolicy Bypass -File ./package-releases.ps1",
     "tauri": "tauri"
   },
   "devDependencies": {

@@ -1,0 +1,56 @@
+name: Build release downloads
+
+on:
+  push:
+    tags:
+      - "desktop-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source and tags
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Build both release packages
+        working-directory: desktop
+        run: npm run package:releases
+
+      - name: Publish Web and Desktop downloads
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $webAsset = 'desktop/release/icebreaker-lottery-web-v1.0.1.zip'
+          $desktopAsset = 'desktop/release/icebreaker-lottery-desktop-v1.0.0-windows-x64.zip'
+
+          & gh release view 'v1.0.1' *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload 'v1.0.1' $webAsset --clobber
+          } else {
+            gh release create 'v1.0.1' $webAsset --title 'Web V1.0.1' --notes '网页版成品：解压后打开 web/index.html。'
+          }
+
+          $desktopTag = $env:GITHUB_REF_NAME
+          & gh release view $desktopTag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $desktopTag $desktopAsset --clobber
+          } else {
+            gh release create $desktopTag $desktopAsset --title 'Desktop V1.0.0' --notes 'Windows x64 免安装版：完整解压后，保持 下一位.exe 与 头像 文件夹在同一目录。'
+          }

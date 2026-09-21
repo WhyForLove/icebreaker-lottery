@@ -1,6 +1,6 @@
 # 下一位 · 破冰抽签
 
-一个用于破冰活动的头像随机抽签工具，提供网页版和 Windows Desktop V1.0.0 源码。
+一个用于破冰活动的头像随机抽签工具，提供网页版和 Windows Desktop V1.0.0。
 
 ## 在线使用
 
@@ -8,27 +8,27 @@
 
 在线版可以直接抽签，也可以临时读取你选择的本地图片文件夹。网页不会上传图片，但在线页面不能永久修改 GitHub 上的默认头像。
 
-## 下载后使用
+## 下载成品
 
-1. 点击仓库右上角的 **Code → Download ZIP**。
-2. 解压下载的文件。
-3. 使用 Edge 或 Chrome 打开 `web/index.html`。
-4. 页面会自动载入项目自带的伙伴头像，可以直接开始抽取。
+普通使用者请到仓库的 [Releases](https://github.com/WhyForLove/icebreaker-lottery/releases) 下载成品，不需要编译源码：
 
-不需要安装 Node.js、Python、数据库或其他运行环境。
+- 网页版：下载 `icebreaker-lottery-web-v1.0.1.zip`，解压后使用 Edge 或 Chrome 打开 `web/index.html`。
+- Windows 桌面版：下载 `icebreaker-lottery-desktop-v1.0.0-windows-x64.zip`，完整解压后双击 `下一位.exe`。
+
+桌面版压缩包内只有 `下一位.exe` 和 `头像/`。两者必须放在同一目录；伙伴名册和图片的增删改会直接保存在这个 `头像/` 文件夹中。建议先保留一份原始压缩包作为备份。
 
 ## Windows 桌面版
 
-Desktop V1.0.0 使用 Tauri 2，目前只支持 Windows 源码构建，不制作安装包。桌面版复用网页版的抽签核心、界面、样式和默认头像，并直接管理 `shared/defaults/头像`。
+Desktop V1.0.0 使用 Tauri 2，目前只支持 64 位 Windows，提供免安装便携版，不制作安装程序。桌面版复用网页版的抽签核心、界面和样式。
 
-开发环境准备完成后，在 `desktop` 目录执行：
+以下内容仅供需要修改源码的开发者使用。开发环境准备完成后，在 `desktop` 目录执行：
 
 ```text
 npm install
 npm run build:exe
 ```
 
-构建结果为 `desktop/下一位.exe`，双击即可启动。生成的 EXE 和 Rust、Node 编译缓存不进入 Git；完整说明见 `desktop/README.md`。
+构建结果为 `desktop/下一位.exe`。首次构建还会复制一份可编辑的 `desktop/头像/`，不会覆盖已有头像数据。生成的 EXE、头像副本、发布包和 Rust/Node 编译缓存均不进入 Git；完整说明见 `desktop/README.md`。
 
 ## 抽签操作
 
@@ -75,4 +75,4 @@ shared/defaults/头像
 ## 当前版本
 
 - Web V1.0.1
-- Desktop V1.0.0（Windows 源码版）
+- Desktop V1.0.0（Windows x64 免安装版）

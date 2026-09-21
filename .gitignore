@@ -6,6 +6,8 @@ project-docs/
 # 依赖、日志与临时测试产物
 node_modules/
 desktop/dist/
+desktop/release/
+desktop/头像/
 desktop/*.exe
 desktop/src-tauri/gen/
 desktop/src-tauri/target/
