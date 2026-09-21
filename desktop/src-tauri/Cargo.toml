@@ -1,6 +1,6 @@
 [package]
 name = "icebreaker-lottery-desktop"
-version = "0.1.0"
+version = "1.0.0"
 description = "下一位破冰抽签桌面版"
 authors = ["WhyForLove"]
 edition = "2021"

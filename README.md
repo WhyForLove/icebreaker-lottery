@@ -1,6 +1,6 @@
 # 下一位 · 破冰抽签
 
-一个用于破冰活动的头像随机抽签工具，提供网页版和 Windows Desktop V2 源码。
+一个用于破冰活动的头像随机抽签工具，提供网页版和 Windows Desktop V1.0.0 源码。
 
 ## 在线使用
 
@@ -19,7 +19,7 @@
 
 ## Windows 桌面版
 
-Desktop V2 使用 Tauri 2，目前只支持 Windows 源码构建，不制作安装包。桌面版复用网页版的抽签核心、界面、样式和默认头像，并直接管理 `shared/defaults/头像`。
+Desktop V1.0.0 使用 Tauri 2，目前只支持 Windows 源码构建，不制作安装包。桌面版复用网页版的抽签核心、界面、样式和默认头像，并直接管理 `shared/defaults/头像`。
 
 开发环境准备完成后，在 `desktop` 目录执行：
 
@@ -75,4 +75,4 @@ shared/defaults/头像
 ## 当前版本
 
 - Web V1.0.1
-- Desktop V2（Windows 源码版）
+- Desktop V1.0.0（Windows 源码版）

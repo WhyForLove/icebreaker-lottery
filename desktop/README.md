@@ -1,4 +1,4 @@
-# Desktop V2
+# Desktop V1.0.0
 
 Windows 桌面开发版，使用 Tauri 2，以源码方式运行，暂不制作安装包。
 

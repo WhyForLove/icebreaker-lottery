@@ -502,5 +502,5 @@ fn main() {
             delete_partners
         ])
         .run(tauri::generate_context!())
-        .expect("failed to run Desktop V2");
+        .expect("failed to run Desktop V1.0.0");
 }
