@@ -5,6 +5,10 @@ project-docs/
 
 # 依赖、日志与临时测试产物
 node_modules/
+desktop/dist/
+desktop/*.exe
+desktop/src-tauri/gen/
+desktop/src-tauri/target/
 *.log
 .tmp-*/
 test-results/

@@ -1,6 +1,6 @@
 # 下一位 · 破冰抽签
 
-一个用于破冰活动的头像随机抽签工具。无需安装，使用最新版 Edge 或 Chrome 即可运行。
+一个用于破冰活动的头像随机抽签工具，提供网页版和 Windows Desktop V2 源码。
 
 ## 在线使用
 
@@ -16,6 +16,19 @@
 4. 页面会自动载入项目自带的伙伴头像，可以直接开始抽取。
 
 不需要安装 Node.js、Python、数据库或其他运行环境。
+
+## Windows 桌面版
+
+Desktop V2 使用 Tauri 2，目前只支持 Windows 源码构建，不制作安装包。桌面版复用网页版的抽签核心、界面、样式和默认头像，并直接管理 `shared/defaults/头像`。
+
+开发环境准备完成后，在 `desktop` 目录执行：
+
+```text
+npm install
+npm run build:exe
+```
+
+构建结果为 `desktop/下一位.exe`，双击即可启动。生成的 EXE 和 Rust、Node 编译缓存不进入 Git；完整说明见 `desktop/README.md`。
 
 ## 抽签操作
 
@@ -61,4 +74,5 @@ shared/defaults/头像
 - 头像来源于网络，仅用作学术交流，如有侵权，私信删除。
 ## 当前版本
 
-Web V1.0.1。桌面版尚未提供。
+- Web V1.0.1
+- Desktop V2（Windows 源码版）

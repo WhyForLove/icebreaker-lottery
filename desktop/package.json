@@ -1,0 +1,16 @@
+{
+  "name": "icebreaker-lottery-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:exe": "powershell -NoProfile -ExecutionPolicy Bypass -File ./build-exe.ps1",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4",
+    "vite": "^8.3.0"
+  }
+}
